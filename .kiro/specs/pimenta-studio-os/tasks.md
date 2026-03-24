@@ -2,21 +2,21 @@
 
 ## Etapa 1: Fundación del Proyecto
 
-- [-] 1.1 Inicializar proyecto Next.js con App Router, Tailwind CSS y ShadCN UI
-- [ ] 1.2 Configurar PostgreSQL y Prisma: instalar dependencias, crear `prisma/schema.prisma` con todos los modelos y enums, ejecutar migración inicial
-- [ ] 1.3 Crear `lib/prisma.ts` con el singleton del cliente Prisma
-- [ ] 1.4 Configurar NextAuth con CredentialsProvider: crear `lib/auth.ts`, `app/api/auth/[...nextauth]/route.ts` y `middleware.ts` para proteger rutas
-- [ ] 1.5 Crear layout principal con sidebar de navegación: `app/(dashboard)/layout.tsx`, `components/layout/sidebar.tsx` y `components/layout/header.tsx`
-- [ ] 1.6 Crear página de login: `app/(auth)/login/page.tsx` con formulario email/password
-- [ ] 1.7 Crear script de seed con usuario admin inicial: `prisma/seed.ts`
+- [x] 1.1 Inicializar proyecto Next.js con App Router, Tailwind CSS y ShadCN UI
+- [x] 1.2 Configurar PostgreSQL y Prisma: instalar dependencias, crear `prisma/schema.prisma` con todos los modelos y enums, ejecutar migración inicial
+- [x] 1.3 Crear `lib/prisma.ts` con el singleton del cliente Prisma
+- [x] 1.4 Configurar NextAuth con CredentialsProvider: crear `lib/auth.ts`, `app/api/auth/[...nextauth]/route.ts` y `middleware.ts` para proteger rutas
+- [x] 1.5 Crear layout principal con sidebar de navegación: `app/(dashboard)/layout.tsx`, `components/layout/sidebar.tsx` y `components/layout/header.tsx`
+- [x] 1.6 Crear página de login: `app/(auth)/login/page.tsx` con formulario email/password
+- [x] 1.7 Crear script de seed con usuario admin inicial: `prisma/seed.ts`
 
 ## Etapa 2: Módulo de Clientes
 
-- [ ] 2.1 Crear Server Actions para clientes: `actions/clients.ts` con `createClient`, `updateClient`, `deleteClient` (soft delete) y `getClients`
-- [ ] 2.2 Crear página de lista de clientes con tabla, filtros por status/type/priority y búsqueda por nombre: `app/(dashboard)/clients/page.tsx`
-- [ ] 2.3 Crear formulario de creación/edición de cliente como componente reutilizable: `components/clients/client-form.tsx`
-- [ ] 2.4 Crear páginas `new` y `edit` de cliente usando el formulario compartido
-- [ ] 2.5 Crear página de detalle de cliente con tabs: info, cotizaciones, proyectos, reuniones, ingresos: `app/(dashboard)/clients/[id]/page.tsx`
+- [x] 2.1 Crear Server Actions para clientes: `actions/clients.ts` con `createClient`, `updateClient`, `deleteClient` (soft delete) y `getClients`
+- [x] 2.2 Crear página de lista de clientes con tabla, filtros por status/type/priority y búsqueda por nombre: `app/(dashboard)/clients/page.tsx`
+- [x] 2.3 Crear formulario de creación/edición de cliente como componente reutilizable: `components/clients/client-form.tsx`
+- [x] 2.4 Crear páginas `new` y `edit` de cliente usando el formulario compartido
+- [x] 2.5 Crear página de detalle de cliente con tabs: info, cotizaciones, proyectos, reuniones, ingresos: `app/(dashboard)/clients/[id]/page.tsx`
 
 ## Etapa 3: Módulo de Cotizaciones
 
