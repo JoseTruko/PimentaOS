@@ -1,0 +1,206 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  password     String
+  role         Role      @default(member)
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+
+  assignedClients   Client[]
+  assignedProjects  Project[]
+  meetings          MeetingParticipant[]
+
+  @@map("users")
+}
+
+enum Role {
+  admin
+  member
+}
+
+model Client {
+  id             String        @id @default(cuid())
+  name           String
+  company        String?
+  email          String
+  phone          String?
+  status         ClientStatus  @default(lead)
+  type           ClientType
+  priority       Priority
+  assignedUserId String?
+  createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
+
+  assignedUser   User?         @relation(fields: [assignedUserId], references: [id])
+  quotes         Quote[]
+  projects       Project[]
+  meetings       Meeting[]
+  incomes        Income[]
+
+  @@map("clients")
+}
+
+enum ClientStatus { 
+  lead 
+  active 
+  inactive 
+}
+
+enum ClientType   { 
+  web 
+  system 
+  marketing 
+  other 
+}
+
+enum Priority     { 
+  high 
+  medium 
+  low 
+}
+
+model Quote {
+  id        String      @id @default(cuid())
+  clientId  String
+  total     Decimal     @default(0)
+  status    QuoteStatus @default(draft)
+  createdAt DateTime    @default(now())
+
+  client    Client      @relation(fields: [clientId], references: [id])
+  items     QuoteItem[]
+  project   Project?
+
+  @@map("quotes")
+}
+
+enum QuoteStatus { 
+  draft 
+  sent 
+  approved 
+  rejected 
+}
+
+model QuoteItem {
+  id          String  @id @default(cuid())
+  quoteId     String
+  description String
+  quantity    Int
+  unitPrice   Decimal
+  total       Decimal
+
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@map("quote_items")
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  name           String
+  clientId       String
+  assignedUserId String?
+  quoteId        String?       @unique
+  jiraUrl        String?
+  status         ProjectStatus @default(active)
+  budget         Decimal?
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
+
+  client         Client        @relation(fields: [clientId], references: [id])
+  assignedUser   User?         @relation(fields: [assignedUserId], references: [id])
+  quote          Quote?        @relation(fields: [quoteId], references: [id])
+  incomes        Income[]
+
+  @@map("projects")
+}
+
+enum ProjectStatus { 
+  active 
+  paused 
+  completed 
+}
+
+model Income {
+  id        String       @id @default(cuid())
+  projectId String
+  clientId  String
+  amount    Decimal
+  status    IncomeStatus @default(pending)
+  date      DateTime
+  paidAt    DateTime?
+  createdAt DateTime     @default(now())
+
+  project   Project      @relation(fields: [projectId], references: [id])
+  client    Client       @relation(fields: [clientId], references: [id])
+
+  @@map("incomes")
+}
+
+enum IncomeStatus { 
+  pending 
+  paid 
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  description String
+  amount      Decimal
+  category    ExpenseCategory
+  date        DateTime
+  createdAt   DateTime        @default(now())
+
+  @@map("expenses")
+}
+
+enum ExpenseCategory { 
+  tools 
+  marketing 
+  salaries 
+  other 
+}
+
+model Meeting {
+  id          String      @id @default(cuid())
+  title       String
+  type        MeetingType
+  clientId    String?
+  dateTime    DateTime
+  meetingLink String?
+  notes       String?
+  createdAt   DateTime    @default(now())
+
+  client       Client?              @relation(fields: [clientId], references: [id])
+  participants MeetingParticipant[]
+
+  @@map("meetings")
+}
+
+enum MeetingType { 
+  internal 
+  client 
+}
+
+model MeetingParticipant {
+  meetingId String
+  userId    String
+
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id])
+
+  @@id([meetingId, userId])
+  @@map("meeting_participants")
+}
