@@ -119,12 +119,12 @@ export function ClientForm({ action, users, client }: Props) {
 
         <div className="space-y-2">
           <Label htmlFor="assignedUserId">Responsable</Label>
-          <Select name="assignedUserId" defaultValue={client?.assignedUserId ?? ''}>
+          <Select name="assignedUserId" defaultValue={client?.assignedUserId ?? 'none'}>
             <SelectTrigger id="assignedUserId">
               <SelectValue placeholder="Sin asignar" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Sin asignar</SelectItem>
+              <SelectItem value="none">Sin asignar</SelectItem>
               {users.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.name}

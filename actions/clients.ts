@@ -72,6 +72,7 @@ export async function createClient(
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
+  const assignedUserId = formData.get('assignedUserId')
   const parsed = ClientSchema.safeParse({
     name: formData.get('name'),
     company: formData.get('company') || undefined,
@@ -80,7 +81,7 @@ export async function createClient(
     status: formData.get('status'),
     type: formData.get('type'),
     priority: formData.get('priority'),
-    assignedUserId: formData.get('assignedUserId') || undefined,
+    assignedUserId: (!assignedUserId || assignedUserId === 'none') ? undefined : assignedUserId,
   })
 
   if (!parsed.success) {
@@ -100,6 +101,7 @@ export async function updateClient(
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
+  const assignedUserId2 = formData.get('assignedUserId')
   const parsed = ClientSchema.safeParse({
     name: formData.get('name'),
     company: formData.get('company') || undefined,
@@ -108,7 +110,7 @@ export async function updateClient(
     status: formData.get('status'),
     type: formData.get('type'),
     priority: formData.get('priority'),
-    assignedUserId: formData.get('assignedUserId') || undefined,
+    assignedUserId: (!assignedUserId2 || assignedUserId2 === 'none') ? undefined : assignedUserId2,
   })
 
   if (!parsed.success) {
