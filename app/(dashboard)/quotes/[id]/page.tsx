@@ -3,19 +3,20 @@ import Link from 'next/link'
 import { getQuoteById } from '@/actions/quotes'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { QuoteItemRow } from '@/components/quotes/quote-item-row'
-import { AddItemForm } from '@/components/quotes/add-item-form'
-import { QuoteActions } from '@/components/quotes/quote-actions'
-import { FileDown, ArrowLeft } from 'lucide-react'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import { QuoteStatusButton } from '@/components/quotes/quote-status-button'
+import { DeleteQuoteButton } from '@/components/quotes/delete-quote-button'
+import { ConvertToProjectButton } from '@/components/quotes/convert-to-project-button'
+import { CalendarClock, Download } from 'lucide-react'
 
 const statusLabel: Record<string, string> = {
   draft: 'Borrador', sent: 'Enviada', approved: 'Aprobada', rejected: 'Rechazada',
 }
-const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  draft: 'secondary', sent: 'outline', approved: 'default', rejected: 'destructive',
+const statusVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
+  draft: 'secondary', sent: 'outline', approved: 'default', rejected: 'outline',
 }
-
-const locked = (status: string) => status === 'approved' || status === 'rejected'
 
 export default async function QuoteDetailPage({
   params,
@@ -26,103 +27,111 @@ export default async function QuoteDetailPage({
   const quote = await getQuoteById(id)
   if (!quote) notFound()
 
-  const isLocked = locked(quote.status)
+  const isExpired = quote.validUntil && new Date(quote.validUntil) < new Date()
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      {/* Header */}
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <Link href="/quotes" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-3.5 w-3.5" /> Cotizaciones
-          </Link>
+        <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {quote.client.name}
-            {quote.client.company && (
-              <span className="text-muted-foreground font-normal text-lg"> · {quote.client.company}</span>
-            )}
+            {quote.title ?? `Cotización — ${quote.client.company ?? quote.client.name}`}
           </h1>
-          <div className="flex items-center gap-2">
+          <p className="text-muted-foreground text-sm mt-0.5">
+            <Link href={`/clients/${quote.client.id}`} className="hover:underline">
+              {quote.client.name}
+            </Link>
+            {' · '}
+            {new Date(quote.createdAt).toLocaleDateString('es', { dateStyle: 'long' })}
+          </p>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <Badge variant={statusVariant[quote.status]}>{statusLabel[quote.status]}</Badge>
-            <span className="text-xs text-muted-foreground">
-              {new Date(quote.createdAt).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </span>
+            {quote.validUntil && (
+              <span className={`flex items-center gap-1 text-xs font-medium ${isExpired ? 'text-destructive' : 'text-muted-foreground'}`}>
+                <CalendarClock className="h-3.5 w-3.5" />
+                {isExpired ? 'Venció el' : 'Válida hasta'}{' '}
+                {new Date(quote.validUntil).toLocaleDateString('es')}
+              </span>
+            )}
           </div>
         </div>
-
-        <div className="flex gap-2 shrink-0">
-          <Button asChild variant="outline" size="sm">
-            <a href={`/api/quotes/${id}/pdf`} target="_blank">
-              <FileDown className="mr-2 h-4 w-4" />
-              PDF
+        <div className="flex gap-2 flex-wrap justify-end shrink-0">
+          <ConvertToProjectButton
+            quoteId={id}
+            hasProject={!!quote.project}
+            projectId={quote.project?.id}
+          />
+          <Button asChild size="sm" variant="outline">
+            <a href={`/quotes/${id}/pdf`} target="_blank" rel="noopener noreferrer">
+              <Download className="mr-2 h-4 w-4" /> Exportar
             </a>
           </Button>
-          <QuoteActions quoteId={id} status={quote.status} />
+          <QuoteStatusButton id={id} currentStatus={quote.status} />
+          <DeleteQuoteButton id={id} />
         </div>
       </div>
 
-      {/* Proyecto vinculado */}
-      {quote.project && (
-        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm">
-          <span className="text-emerald-700">Proyecto creado:</span>
-          <Link href={`/projects/${quote.project.id}`} className="font-medium text-emerald-800 hover:underline">
-            {quote.project.name}
+      {/* Client info */}
+      <div className="bg-card rounded-xl border p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div>
+          <p className="text-xs text-muted-foreground">Cliente</p>
+          <Link href={`/clients/${quote.client.id}`} className="font-medium text-sm hover:underline mt-0.5 block">
+            {quote.client.name}
           </Link>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Email</p>
+          <p className="font-medium text-sm mt-0.5">{quote.client.email}</p>
+        </div>
+        {quote.project && (
+          <div>
+            <p className="text-xs text-muted-foreground">Proyecto</p>
+            <Link href={`/projects/${quote.project.id}`} className="font-medium text-sm hover:underline mt-0.5 block">
+              {quote.project.name}
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* Notes */}
+      {quote.notes && (
+        <div className="bg-card rounded-xl border p-5">
+          <p className="text-xs text-muted-foreground mb-1">Notas</p>
+          <p className="text-sm text-foreground whitespace-pre-wrap">{quote.notes}</p>
         </div>
       )}
 
-      {/* Tabla de ítems */}
-      <div className="bg-card rounded-xl border overflow-hidden">
-        <div className="px-4 py-3 border-b bg-muted/30">
-          <p className="text-sm font-semibold text-foreground">Ítems de la cotización</p>
+      {/* Items */}
+      <div className="bg-card rounded-xl border">
+        <div className="px-5 py-4 border-b">
+          <h2 className="font-semibold text-foreground">Ítems</h2>
         </div>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b text-xs text-muted-foreground">
-              <th className="px-4 py-2.5 text-left font-medium">Descripción</th>
-              <th className="px-4 py-2.5 text-center font-medium">Cant.</th>
-              <th className="px-4 py-2.5 text-right font-medium">Precio unit.</th>
-              <th className="px-4 py-2.5 text-right font-medium">Total</th>
-              {!isLocked && <th className="px-4 py-2.5" />}
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {quote.items.length === 0 ? (
-              <tr>
-                <td colSpan={isLocked ? 4 : 5} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  Sin ítems aún
-                </td>
-              </tr>
-            ) : quote.items.map((item) => (
-              <QuoteItemRow
-                key={item.id}
-                quoteId={id}
-                item={{
-                  id: item.id,
-                  description: item.description,
-                  quantity: item.quantity,
-                  unitPrice: Number(item.unitPrice),
-                  total: Number(item.total),
-                }}
-                locked={isLocked}
-              />
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Descripción</TableHead>
+              <TableHead className="text-right">Cantidad</TableHead>
+              <TableHead className="text-right">Precio unitario</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {quote.items.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>{item.description}</TableCell>
+                <TableCell className="text-right">{item.quantity}</TableCell>
+                <TableCell className="text-right">${Number(item.unitPrice).toLocaleString('es')}</TableCell>
+                <TableCell className="text-right font-medium">${Number(item.total).toLocaleString('es')}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t bg-muted/20">
-              <td colSpan={isLocked ? 3 : 4} className="px-4 py-3 text-sm font-semibold text-right text-foreground">
-                Total
-              </td>
-              <td className="px-4 py-3 text-right font-bold text-lg text-foreground">
+            <TableRow>
+              <TableCell colSpan={3} className="text-right font-semibold">Total</TableCell>
+              <TableCell className="text-right font-bold text-lg text-primary">
                 ${Number(quote.total).toLocaleString('es')}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
-
-      {/* Agregar ítem */}
-      {!isLocked && <AddItemForm quoteId={id} />}
     </div>
   )
 }

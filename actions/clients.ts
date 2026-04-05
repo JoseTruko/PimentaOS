@@ -61,6 +61,10 @@ export async function getClientById(id: string) {
       projects: { orderBy: { createdAt: 'desc' } },
       meetings: { orderBy: { dateTime: 'desc' } },
       incomes: { orderBy: { date: 'desc' } },
+      notes: {
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { id: true, name: true } } },
+      },
     },
   })
 }
@@ -72,7 +76,6 @@ export async function createClient(
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
-  const assignedUserId = formData.get('assignedUserId')
   const parsed = ClientSchema.safeParse({
     name: formData.get('name'),
     company: formData.get('company') || undefined,
@@ -81,7 +84,7 @@ export async function createClient(
     status: formData.get('status'),
     type: formData.get('type'),
     priority: formData.get('priority'),
-    assignedUserId: (!assignedUserId || assignedUserId === 'none') ? undefined : assignedUserId,
+    assignedUserId: formData.get('assignedUserId') === 'none' ? undefined : (formData.get('assignedUserId') as string) || undefined,
   })
 
   if (!parsed.success) {
@@ -101,7 +104,6 @@ export async function updateClient(
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
-  const assignedUserId2 = formData.get('assignedUserId')
   const parsed = ClientSchema.safeParse({
     name: formData.get('name'),
     company: formData.get('company') || undefined,
@@ -110,7 +112,7 @@ export async function updateClient(
     status: formData.get('status'),
     type: formData.get('type'),
     priority: formData.get('priority'),
-    assignedUserId: (!assignedUserId2 || assignedUserId2 === 'none') ? undefined : assignedUserId2,
+    assignedUserId: formData.get('assignedUserId') === 'none' ? undefined : (formData.get('assignedUserId') as string) || undefined,
   })
 
   if (!parsed.success) {
@@ -121,6 +123,14 @@ export async function updateClient(
   revalidatePath('/clients')
   revalidatePath(`/clients/${id}`)
   return { message: 'Cliente actualizado exitosamente' }
+}
+
+export async function updateClientStatus(id: string, status: 'lead' | 'active' | 'inactive') {
+  const session = await verifySession()
+  if (!session) throw new Error('No autorizado')
+
+  await prisma.client.update({ where: { id }, data: { status } })
+  revalidatePath('/clients')
 }
 
 export async function deleteClient(id: string): Promise<void> {

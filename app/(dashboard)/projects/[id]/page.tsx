@@ -3,10 +3,15 @@ import Link from 'next/link'
 import { getProjectById } from '@/actions/projects'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ProjectStatusSelect } from '@/components/projects/project-status-select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Pencil, ExternalLink, ArrowLeft, Calendar, DollarSign, User } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import { DeleteProjectButton } from '@/components/projects/delete-project-button'
+import { ProjectTasks } from '@/components/projects/project-tasks'
+import { Pencil, ExternalLink } from 'lucide-react'
 
+const statusLabel: Record<string, string> = { active: 'Activo', paused: 'Pausado', completed: 'Completado' }
 const statusVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
   active: 'default', paused: 'secondary', completed: 'outline',
 }
@@ -21,139 +26,178 @@ export default async function ProjectDetailPage({
   const project = await getProjectById(id)
   if (!project) notFound()
 
-  const totalIncome = project.incomes.reduce((sum, i) => sum + Number(i.amount), 0)
-  const paidIncome = project.incomes
-    .filter((i) => i.status === 'paid')
-    .reduce((sum, i) => sum + Number(i.amount), 0)
-
   return (
-    <div className="space-y-6 max-w-3xl">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <Link href="/projects" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-3.5 w-3.5" /> Proyectos
-          </Link>
+    <div className="space-y-6">
+      <div className="flex items-start justify-between">
+        <div>
           <h1 className="text-2xl font-bold text-foreground">{project.name}</h1>
-          <p className="text-muted-foreground text-sm">
-            {project.client.name}{project.client.company ? ` · ${project.client.company}` : ''}
+          <p className="text-muted-foreground text-sm mt-0.5">
+            <Link href={`/clients/${project.client.id}`} className="hover:underline">
+              {project.client.company ?? project.client.name}
+            </Link>
           </p>
+          <div className="flex gap-2 mt-2">
+            <Badge variant={statusVariant[project.status]}>{statusLabel[project.status]}</Badge>
+            {project.budget && (
+              <Badge variant="outline">${Number(project.budget).toLocaleString('es')}</Badge>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <ProjectStatusSelect projectId={id} currentStatus={project.status} />
+        <div className="flex gap-2">
           <Button asChild size="sm" variant="outline">
             <Link href={`/projects/${id}/edit`}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Editar
+              <Pencil className="mr-2 h-4 w-4" /> Editar
             </Link>
           </Button>
+          <DeleteProjectButton id={id} />
         </div>
       </div>
 
-      {/* Info cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-card rounded-xl border p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <DollarSign className="h-4 w-4" />
-            <span className="text-xs font-medium">Presupuesto</span>
-          </div>
-          <p className="font-bold text-foreground">
-            {project.budget ? `$${Number(project.budget).toLocaleString('es')}` : '—'}
-          </p>
+      {/* Progress bar */}
+      <div className="bg-card rounded-xl border p-5 space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium text-foreground">Progreso general</span>
+          <span className="font-bold text-primary">{project.progress}%</span>
         </div>
-
-        <div className="bg-card rounded-xl border p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <User className="h-4 w-4" />
-            <span className="text-xs font-medium">Responsable</span>
-          </div>
-          <p className="font-bold text-foreground">{project.assignedUser?.name ?? '—'}</p>
+        <div className="h-3 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500"
+            style={{ width: `${project.progress}%` }}
+          />
         </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{project.tasks.filter(t => t.done).length} de {project.tasks.length} tareas completadas</span>
+          {project.endDate && (
+            <span>Entrega: {new Date(project.endDate).toLocaleDateString('es', { dateStyle: 'medium' })}</span>
+          )}
+        </div>
+      </div>
 
-        <div className="bg-card rounded-xl border p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Calendar className="h-4 w-4" />
-            <span className="text-xs font-medium">Inicio</span>
-          </div>
-          <p className="font-bold text-foreground">
+      {/* Info */}
+      <div className="bg-card rounded-xl border p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <p className="text-xs text-muted-foreground">Responsable</p>
+          <p className="font-medium text-sm mt-0.5">{project.assignedUser?.name ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Fecha inicio</p>
+          <p className="font-medium text-sm mt-0.5">
             {project.startDate ? new Date(project.startDate).toLocaleDateString('es') : '—'}
           </p>
         </div>
-
-        <div className="bg-card rounded-xl border p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Calendar className="h-4 w-4" />
-            <span className="text-xs font-medium">Fin</span>
-          </div>
-          <p className="font-bold text-foreground">
+        <div>
+          <p className="text-xs text-muted-foreground">Fecha fin</p>
+          <p className="font-medium text-sm mt-0.5">
             {project.endDate ? new Date(project.endDate).toLocaleDateString('es') : '—'}
           </p>
         </div>
-      </div>
-
-      {/* Jira link */}
-      {project.jiraUrl && (
-        <a
-          href={project.jiraUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 text-sm text-primary hover:underline"
-        >
-          <ExternalLink className="h-4 w-4" />
-          Ver en Jira
-        </a>
-      )}
-
-      {/* Cotización vinculada */}
-      {project.quote && (
-        <div className="flex items-center gap-3 bg-accent rounded-xl border border-primary/20 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">Cotización origen:</span>
-          <Link href={`/quotes/${project.quote.id}`} className="font-medium text-primary hover:underline">
-            ${Number(project.quote.total).toLocaleString('es')}
-          </Link>
-          <Badge variant="outline" className="text-xs">{project.quote.status}</Badge>
+        <div>
+          <p className="text-xs text-muted-foreground">Presupuesto</p>
+          <p className="font-medium text-sm mt-0.5">
+            {project.budget ? `$${Number(project.budget).toLocaleString('es')}` : '—'}
+          </p>
         </div>
-      )}
-
-      {/* Ingresos */}
-      <div className="bg-card rounded-xl border">
-        <div className="px-5 py-4 border-b flex items-center justify-between">
-          <h2 className="font-semibold text-foreground">Ingresos</h2>
-          <div className="text-sm text-muted-foreground">
-            Cobrado: <span className="font-semibold text-foreground">${paidIncome.toLocaleString('es')}</span>
-            {' / '}
-            Total: <span className="font-semibold text-foreground">${totalIncome.toLocaleString('es')}</span>
+        {project.jiraUrl && (
+          <div className="col-span-2 md:col-span-4">
+            <p className="text-xs text-muted-foreground">Jira</p>
+            <a href={project.jiraUrl} target="_blank" rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline flex items-center gap-1 mt-0.5">
+              {project.jiraUrl} <ExternalLink className="h-3 w-3" />
+            </a>
           </div>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Fecha</TableHead>
-              <TableHead className="text-right">Monto</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {project.incomes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                  Sin ingresos registrados
-                </TableCell>
-              </TableRow>
-            ) : project.incomes.map((income) => (
-              <TableRow key={income.id}>
-                <TableCell className="text-sm">{new Date(income.date).toLocaleDateString('es')}</TableCell>
-                <TableCell className="text-right font-semibold">${Number(income.amount).toLocaleString('es')}</TableCell>
-                <TableCell>
-                  <Badge variant={income.status === 'paid' ? 'default' : 'secondary'}>
-                    {incomeStatusLabel[income.status]}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        )}
       </div>
+
+      <Tabs defaultValue="tasks">
+        <TabsList>
+          <TabsTrigger value="tasks">Tareas ({project.tasks.length})</TabsTrigger>
+          <TabsTrigger value="incomes">Ingresos ({project.incomes.length})</TabsTrigger>
+          {project.quote && <TabsTrigger value="quote">Cotización</TabsTrigger>}
+        </TabsList>
+
+        <TabsContent value="tasks" className="mt-4">
+          <div className="bg-card rounded-xl border p-5">
+            <ProjectTasks
+              projectId={id}
+              tasks={project.tasks}
+              progress={project.progress}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="incomes" className="mt-4">
+          <div className="rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Monto</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Pagado el</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {project.incomes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                      Sin ingresos registrados
+                    </TableCell>
+                  </TableRow>
+                ) : project.incomes.map((income) => (
+                  <TableRow key={income.id}>
+                    <TableCell>{new Date(income.date).toLocaleDateString('es')}</TableCell>
+                    <TableCell className="font-medium">${Number(income.amount).toLocaleString('es')}</TableCell>
+                    <TableCell>
+                      <Badge variant={income.status === 'paid' ? 'default' : 'secondary'}>
+                        {incomeStatusLabel[income.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {income.paidAt ? new Date(income.paidAt).toLocaleDateString('es') : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        {project.quote && (
+          <TabsContent value="quote" className="mt-4">
+            <div className="bg-card rounded-xl border p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-foreground">
+                  {project.quote.title ?? `Cotización del ${new Date(project.quote.createdAt).toLocaleDateString('es')}`}
+                </p>
+                <Link href={`/quotes/${project.quote.id}`} className="text-xs text-primary hover:underline">
+                  Ver detalle →
+                </Link>
+              </div>
+              <p className="text-2xl font-bold text-foreground">${Number(project.quote.total).toLocaleString('es')}</p>
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead className="text-right">Cant.</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {project.quote.items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-right">{item.quantity}</TableCell>
+                        <TableCell className="text-right">${Number(item.total).toLocaleString('es')}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   )
 }

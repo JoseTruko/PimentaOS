@@ -1,109 +1,140 @@
 import { getIncomes, getExpenses } from '@/actions/finance'
-import { prisma } from '@/lib/prisma'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { IncomeForm } from '@/components/finance/income-form'
-import { ExpenseForm } from '@/components/finance/expense-form'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AddIncomeButton } from '@/components/finance/add-income-button'
+import { AddExpenseButton } from '@/components/finance/add-expense-button'
 import { MarkPaidButton } from '@/components/finance/mark-paid-button'
+import { DeleteFinanceButton } from '@/components/finance/delete-finance-button'
+import { FinanceChart } from '@/components/finance/finance-chart'
+import { prisma } from '@/lib/prisma'
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react'
 
 const categoryLabel: Record<string, string> = {
   tools: 'Herramientas', marketing: 'Marketing', salaries: 'Salarios', other: 'Otro',
 }
+const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 export default async function FinancePage() {
-  const [incomes, expenses, projects] = await Promise.all([
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  // Build last 6 months range
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+
+  const [incomes, expenses, monthIncome, monthExpenses, projects, allIncomes, allExpenses] = await Promise.all([
     getIncomes(),
     getExpenses(),
+    prisma.income.aggregate({
+      where: { date: { gte: startOfMonth }, status: 'paid' },
+      _sum: { amount: true },
+    }),
+    prisma.expense.aggregate({
+      where: { date: { gte: startOfMonth } },
+      _sum: { amount: true },
+    }),
     prisma.project.findMany({
-      where: { deletedAt: null, status: { not: 'completed' } },
-      select: { id: true, name: true, clientId: true, client: { select: { id: true, name: true } } },
+      where: { deletedAt: null },
+      select: { id: true, name: true, client: { select: { id: true, name: true } } },
       orderBy: { name: 'asc' },
+    }),
+    prisma.income.findMany({
+      where: { date: { gte: sixMonthsAgo }, status: 'paid' },
+      select: { amount: true, date: true },
+    }),
+    prisma.expense.findMany({
+      where: { date: { gte: sixMonthsAgo } },
+      select: { amount: true, date: true },
     }),
   ])
 
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const income = Number(monthIncome._sum.amount ?? 0)
+  const expensesTotal = Number(monthExpenses._sum.amount ?? 0)
+  const net = income - expensesTotal
 
-  const monthlyIncomes = incomes.filter((i) => {
-    const d = new Date(i.date)
-    return d >= startOfMonth && d <= endOfMonth
+  // Build chart data for last 6 months
+  const chartData = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
+    const y = d.getFullYear()
+    const m = d.getMonth()
+    const monthInc = allIncomes
+      .filter(r => new Date(r.date).getFullYear() === y && new Date(r.date).getMonth() === m)
+      .reduce((s, r) => s + Number(r.amount), 0)
+    const monthExp = allExpenses
+      .filter(r => new Date(r.date).getFullYear() === y && new Date(r.date).getMonth() === m)
+      .reduce((s, r) => s + Number(r.amount), 0)
+    return { month: MONTHS_ES[m], income: monthInc, expenses: monthExp }
   })
-  const monthlyExpenses = expenses.filter((e) => {
-    const d = new Date(e.date)
-    return d >= startOfMonth && d <= endOfMonth
-  })
-
-  const totalIncome = monthlyIncomes.reduce((s, i) => s + Number(i.amount), 0)
-  const totalExpenses = monthlyExpenses.reduce((s, e) => s + Number(e.amount), 0)
-  const netProfit = totalIncome - totalExpenses
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Finanzas</h1>
-        <p className="text-muted-foreground text-sm">Resumen del mes actual</p>
+        <p className="text-muted-foreground text-sm mt-1">Ingresos y gastos de la agencia</p>
       </div>
 
-      {/* Summary cards */}
+      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-card rounded-xl border p-5 flex items-center gap-4">
-          <div className="h-11 w-11 rounded-xl bg-emerald-50 ring-1 ring-emerald-100 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
             <TrendingUp className="h-5 w-5 text-emerald-600" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground font-medium">Ingresos del mes</p>
-            <p className="text-xl font-bold text-foreground">${totalIncome.toLocaleString('es')}</p>
+            <p className="text-xs text-muted-foreground">Ingresos del mes</p>
+            <p className="text-xl font-bold text-foreground">${income.toLocaleString('es')}</p>
           </div>
         </div>
-
         <div className="bg-card rounded-xl border p-5 flex items-center gap-4">
-          <div className="h-11 w-11 rounded-xl bg-rose-50 ring-1 ring-rose-100 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
             <TrendingDown className="h-5 w-5 text-rose-600" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground font-medium">Gastos del mes</p>
-            <p className="text-xl font-bold text-foreground">${totalExpenses.toLocaleString('es')}</p>
+            <p className="text-xs text-muted-foreground">Gastos del mes</p>
+            <p className="text-xl font-bold text-foreground">${expensesTotal.toLocaleString('es')}</p>
           </div>
         </div>
-
         <div className="bg-card rounded-xl border p-5 flex items-center gap-4">
-          <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ring-1 ${netProfit >= 0 ? 'bg-accent ring-primary/10' : 'bg-rose-50 ring-rose-100'}`}>
-            <Wallet className={`h-5 w-5 ${netProfit >= 0 ? 'text-primary' : 'text-rose-600'}`} />
+          <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center shrink-0">
+            <Wallet className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground font-medium">Ganancia neta</p>
-            <p className={`text-xl font-bold ${netProfit >= 0 ? 'text-foreground' : 'text-rose-600'}`}>
-              ${netProfit.toLocaleString('es')}
+            <p className="text-xs text-muted-foreground">Ganancia neta</p>
+            <p className={`text-xl font-bold ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              ${net.toLocaleString('es')}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Chart */}
+      <div className="bg-card rounded-xl border p-5">
+        <h2 className="font-semibold text-foreground mb-4">Últimos 6 meses</h2>
+        <FinanceChart data={chartData} />
+      </div>
+
       <Tabs defaultValue="incomes">
-        <TabsList>
-          <TabsTrigger value="incomes">Ingresos ({incomes.length})</TabsTrigger>
-          <TabsTrigger value="expenses">Gastos ({expenses.length})</TabsTrigger>
-        </TabsList>
-
-        {/* Ingresos */}
-        <TabsContent value="incomes" className="mt-4 space-y-4">
-          <div className="bg-card rounded-xl border p-5">
-            <h3 className="font-semibold text-foreground mb-4">Registrar Ingreso</h3>
-            <IncomeForm projects={projects} />
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="incomes">Ingresos ({incomes.length})</TabsTrigger>
+            <TabsTrigger value="expenses">Gastos ({expenses.length})</TabsTrigger>
+          </TabsList>
+          <div className="flex gap-2">
+            <AddIncomeButton projects={projects} />
+            <AddExpenseButton />
           </div>
+        </div>
 
-          <div className="bg-card rounded-xl border">
+        <TabsContent value="incomes" className="mt-4">
+          <div className="rounded-xl border bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Proyecto</TableHead>
-                  <TableHead>Cliente</TableHead>
                   <TableHead>Fecha</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Proyecto</TableHead>
+                  <TableHead>Monto</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead />
                 </TableRow>
@@ -111,21 +142,26 @@ export default async function FinancePage() {
               <TableBody>
                 {incomes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Sin ingresos registrados</TableCell>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                      No hay ingresos registrados
+                    </TableCell>
                   </TableRow>
                 ) : incomes.map((income) => (
                   <TableRow key={income.id}>
-                    <TableCell className="font-medium text-sm">{income.project.name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{income.client.name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(income.date).toLocaleDateString('es')}</TableCell>
-                    <TableCell className="text-right font-semibold">${Number(income.amount).toLocaleString('es')}</TableCell>
+                    <TableCell className="text-muted-foreground">{new Date(income.date).toLocaleDateString('es')}</TableCell>
+                    <TableCell className="font-medium">{income.client.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{income.project.name}</TableCell>
+                    <TableCell className="font-medium">${Number(income.amount).toLocaleString('es')}</TableCell>
                     <TableCell>
                       <Badge variant={income.status === 'paid' ? 'default' : 'secondary'}>
                         {income.status === 'paid' ? 'Pagado' : 'Pendiente'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {income.status === 'pending' && <MarkPaidButton id={income.id} />}
+                      <div className="flex gap-2 justify-end">
+                        {income.status === 'pending' && <MarkPaidButton id={income.id} />}
+                        <DeleteFinanceButton id={income.id} type="income" />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -134,36 +170,36 @@ export default async function FinancePage() {
           </div>
         </TabsContent>
 
-        {/* Gastos */}
-        <TabsContent value="expenses" className="mt-4 space-y-4">
-          <div className="bg-card rounded-xl border p-5">
-            <h3 className="font-semibold text-foreground mb-4">Registrar Gasto</h3>
-            <ExpenseForm />
-          </div>
-
-          <div className="bg-card rounded-xl border">
+        <TabsContent value="expenses" className="mt-4">
+          <div className="rounded-xl border bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Fecha</TableHead>
                   <TableHead>Descripción</TableHead>
                   <TableHead>Categoría</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
+                  <TableHead>Monto</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {expenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">Sin gastos registrados</TableCell>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                      No hay gastos registrados
+                    </TableCell>
                   </TableRow>
                 ) : expenses.map((expense) => (
                   <TableRow key={expense.id}>
-                    <TableCell className="font-medium text-sm">{expense.description}</TableCell>
+                    <TableCell className="text-muted-foreground">{new Date(expense.date).toLocaleDateString('es')}</TableCell>
+                    <TableCell className="font-medium">{expense.description}</TableCell>
+                    <TableCell className="text-muted-foreground">{categoryLabel[expense.category]}</TableCell>
+                    <TableCell className="font-medium">${Number(expense.amount).toLocaleString('es')}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{categoryLabel[expense.category]}</Badge>
+                      <div className="flex justify-end">
+                        <DeleteFinanceButton id={expense.id} type="expense" />
+                      </div>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(expense.date).toLocaleDateString('es')}</TableCell>
-                    <TableCell className="text-right font-semibold">${Number(expense.amount).toLocaleString('es')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -32,7 +32,7 @@ export default async function EditProjectPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Editar Proyecto</h1>
-        <p className="text-muted-foreground text-sm">{project.name}</p>
+        <p className="text-muted-foreground text-sm mt-1">{project.name}</p>
       </div>
       <ProjectForm action={updateProjectWithId} clients={clients} users={users} project={project} />
     </div>

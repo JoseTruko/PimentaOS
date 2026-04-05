@@ -9,6 +9,7 @@ const IncomeSchema = z.object({
   projectId: z.string().min(1, 'El proyecto es requerido'),
   clientId: z.string().min(1, 'El cliente es requerido'),
   amount: z.coerce.number().min(0.01, 'El monto debe ser mayor a 0'),
+  status: z.enum(['pending', 'paid']),
   date: z.string().min(1, 'La fecha es requerida'),
 })
 
@@ -24,11 +25,16 @@ export type FinanceFormState = {
   message?: string
 }
 
-export async function getIncomes() {
+export async function getIncomes(params?: { status?: string; clientId?: string }) {
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
+  const where: Record<string, unknown> = {}
+  if (params?.status) where.status = params.status
+  if (params?.clientId) where.clientId = params.clientId
+
   return prisma.income.findMany({
+    where,
     include: {
       project: { select: { id: true, name: true } },
       client: { select: { id: true, name: true } },
@@ -37,40 +43,17 @@ export async function getIncomes() {
   })
 }
 
-export async function getExpenses() {
+export async function getExpenses(params?: { category?: string }) {
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
-  return prisma.expense.findMany({ orderBy: { date: 'desc' } })
-}
+  const where: Record<string, unknown> = {}
+  if (params?.category) where.category = params.category
 
-export async function getFinanceSummary() {
-  const session = await verifySession()
-  if (!session) throw new Error('No autorizado')
-
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
-
-  const [incomes, expenses] = await Promise.all([
-    prisma.income.aggregate({
-      _sum: { amount: true },
-      where: { date: { gte: startOfMonth, lte: endOfMonth } },
-    }),
-    prisma.expense.aggregate({
-      _sum: { amount: true },
-      where: { date: { gte: startOfMonth, lte: endOfMonth } },
-    }),
-  ])
-
-  const totalIncome = Number(incomes._sum.amount ?? 0)
-  const totalExpenses = Number(expenses._sum.amount ?? 0)
-
-  return {
-    totalIncome,
-    totalExpenses,
-    netProfit: totalIncome - totalExpenses,
-  }
+  return prisma.expense.findMany({
+    where,
+    orderBy: { date: 'desc' },
+  })
 }
 
 export async function createIncome(
@@ -84,19 +67,14 @@ export async function createIncome(
     projectId: formData.get('projectId'),
     clientId: formData.get('clientId'),
     amount: formData.get('amount'),
+    status: formData.get('status'),
     date: formData.get('date'),
   })
 
-  if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors }
-  }
+  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors }
 
   await prisma.income.create({
-    data: {
-      ...parsed.data,
-      date: new Date(parsed.data.date),
-      status: 'pending',
-    },
+    data: { ...parsed.data, date: new Date(parsed.data.date) },
   })
 
   revalidatePath('/finance')
@@ -111,7 +89,6 @@ export async function markIncomePaid(id: string): Promise<void> {
     where: { id },
     data: { status: 'paid', paidAt: new Date() },
   })
-
   revalidatePath('/finance')
 }
 
@@ -129,9 +106,7 @@ export async function createExpense(
     date: formData.get('date'),
   })
 
-  if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors }
-  }
+  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors }
 
   await prisma.expense.create({
     data: { ...parsed.data, date: new Date(parsed.data.date) },
@@ -139,4 +114,20 @@ export async function createExpense(
 
   revalidatePath('/finance')
   return { message: 'Gasto registrado exitosamente' }
+}
+
+export async function deleteExpense(id: string): Promise<void> {
+  const session = await verifySession()
+  if (!session) throw new Error('No autorizado')
+
+  await prisma.expense.delete({ where: { id } })
+  revalidatePath('/finance')
+}
+
+export async function deleteIncome(id: string): Promise<void> {
+  const session = await verifySession()
+  if (!session) throw new Error('No autorizado')
+
+  await prisma.income.delete({ where: { id } })
+  revalidatePath('/finance')
 }

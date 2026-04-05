@@ -4,21 +4,26 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { verifySession } from '@/lib/dal'
+import { redirect } from 'next/navigation'
+
+const QuoteItemSchema = z.object({
+  description: z.string().min(1),
+  quantity: z.coerce.number().int().min(1),
+  unitPrice: z.coerce.number().min(0),
+})
 
 const QuoteSchema = z.object({
   clientId: z.string().min(1, 'El cliente es requerido'),
-})
-
-const QuoteItemSchema = z.object({
-  description: z.string().min(1, 'La descripción es requerida'),
-  quantity: z.coerce.number().int().min(1, 'La cantidad debe ser al menos 1'),
-  unitPrice: z.coerce.number().min(0, 'El precio debe ser mayor o igual a 0'),
+  title: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.enum(['draft', 'sent', 'approved', 'rejected']),
+  validUntil: z.string().optional(),
+  items: z.array(QuoteItemSchema).min(1, 'Agrega al menos un ítem'),
 })
 
 export type QuoteFormState = {
   errors?: Record<string, string[]>
   message?: string
-  quoteId?: string
 }
 
 export async function getQuotes(params?: { status?: string; clientId?: string }) {
@@ -47,8 +52,8 @@ export async function getQuoteById(id: string) {
     where: { id },
     include: {
       client: { select: { id: true, name: true, company: true, email: true } },
-      items: { orderBy: { id: 'asc' } },
-      project: { select: { id: true, name: true } },
+      items: true,
+      project: true,
     },
   })
 }
@@ -60,122 +65,108 @@ export async function createQuote(
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
-  const parsed = QuoteSchema.safeParse({ clientId: formData.get('clientId') })
-  if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors }
+  const rawItems: { description: string; quantity: string; unitPrice: string }[] = []
+  const descriptions = formData.getAll('item_description')
+  const quantities = formData.getAll('item_quantity')
+  const unitPrices = formData.getAll('item_unitPrice')
+
+  for (let i = 0; i < descriptions.length; i++) {
+    rawItems.push({
+      description: descriptions[i] as string,
+      quantity: quantities[i] as string,
+      unitPrice: unitPrices[i] as string,
+    })
   }
 
-  const quote = await prisma.quote.create({
-    data: { clientId: parsed.data.clientId, total: 0, status: 'draft' },
+  const parsed = QuoteSchema.safeParse({
+    clientId: formData.get('clientId'),
+    title: formData.get('title') || undefined,
+    notes: formData.get('notes') || undefined,
+    status: formData.get('status'),
+    validUntil: formData.get('validUntil') || undefined,
+    items: rawItems.map((item) => ({
+      description: item.description,
+      quantity: parseInt(item.quantity),
+      unitPrice: parseFloat(item.unitPrice),
+    })),
+  })
+
+  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors }
+
+  const items = parsed.data.items.map((item) => ({
+    ...item,
+    total: item.quantity * item.unitPrice,
+  }))
+
+  const total = items.reduce((sum, item) => sum + item.total, 0)
+
+  await prisma.quote.create({
+    data: {
+      clientId: parsed.data.clientId,
+      title: parsed.data.title || null,
+      notes: parsed.data.notes || null,
+      status: parsed.data.status,
+      validUntil: parsed.data.validUntil ? new Date(parsed.data.validUntil) : null,
+      total,
+      items: { create: items },
+    },
   })
 
   revalidatePath('/quotes')
-  return { message: 'Cotización creada', quoteId: quote.id }
+  return { message: 'Cotización creada exitosamente' }
 }
 
-export async function updateQuote(
-  id: string,
-  prevState: QuoteFormState,
-  formData: FormData
-): Promise<QuoteFormState> {
+export async function updateQuoteStatus(id: string, status: string): Promise<void> {
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
-  const parsed = QuoteSchema.safeParse({ clientId: formData.get('clientId') })
-  if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors }
-  }
-
-  await prisma.quote.update({ where: { id }, data: { clientId: parsed.data.clientId } })
+  await prisma.quote.update({
+    where: { id },
+    data: { status: status as 'draft' | 'sent' | 'approved' | 'rejected' },
+  })
   revalidatePath('/quotes')
   revalidatePath(`/quotes/${id}`)
-  return { message: 'Cotización actualizada' }
 }
 
-export async function addQuoteItem(
-  quoteId: string,
-  prevState: QuoteFormState,
-  formData: FormData
-): Promise<QuoteFormState> {
+export async function convertQuoteToProject(quoteId: string): Promise<void> {
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
-  const parsed = QuoteItemSchema.safeParse({
-    description: formData.get('description'),
-    quantity: formData.get('quantity'),
-    unitPrice: formData.get('unitPrice'),
+  const quote = await prisma.quote.findUnique({
+    where: { id: quoteId },
+    include: { client: true, project: true },
   })
 
-  if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors }
+  if (!quote) throw new Error('Cotización no encontrada')
+  if (quote.project) redirect(`/projects/${quote.project.id}`)
+
+  const project = await prisma.project.create({
+    data: {
+      name: quote.title ?? `Proyecto — ${quote.client.name}`,
+      clientId: quote.clientId,
+      quoteId: quote.id,
+      budget: quote.total,
+      status: 'active',
+    },
+  })
+
+  // Mark quote as approved if it wasn't already
+  if (quote.status !== 'approved') {
+    await prisma.quote.update({
+      where: { id: quoteId },
+      data: { status: 'approved' },
+    })
   }
 
-  const { description, quantity, unitPrice } = parsed.data
-  const total = quantity * unitPrice
-
-  await prisma.$transaction(async (tx) => {
-    await tx.quoteItem.create({
-      data: { quoteId, description, quantity, unitPrice, total },
-    })
-    const items = await tx.quoteItem.findMany({ where: { quoteId } })
-    const newTotal = items.reduce((sum, i) => sum + Number(i.total), 0)
-    await tx.quote.update({ where: { id: quoteId }, data: { total: newTotal } })
-  })
-
-  revalidatePath(`/quotes/${quoteId}`)
-  return { message: 'Ítem agregado' }
-}
-
-export async function removeQuoteItem(quoteId: string, itemId: string): Promise<void> {
-  const session = await verifySession()
-  if (!session) throw new Error('No autorizado')
-
-  await prisma.$transaction(async (tx) => {
-    await tx.quoteItem.delete({ where: { id: itemId } })
-    const items = await tx.quoteItem.findMany({ where: { quoteId } })
-    const newTotal = items.reduce((sum, i) => sum + Number(i.total), 0)
-    await tx.quote.update({ where: { id: quoteId }, data: { total: newTotal } })
-  })
-
-  revalidatePath(`/quotes/${quoteId}`)
-}
-
-export async function changeQuoteStatus(
-  quoteId: string,
-  status: 'draft' | 'sent' | 'rejected'
-): Promise<void> {
-  const session = await verifySession()
-  if (!session) throw new Error('No autorizado')
-
-  await prisma.quote.update({ where: { id: quoteId }, data: { status } })
   revalidatePath('/quotes')
-  revalidatePath(`/quotes/${quoteId}`)
-}
-
-export async function approveQuote(quoteId: string): Promise<void> {
-  const session = await verifySession()
-  if (!session) throw new Error('No autorizado')
-
-  const quote = await prisma.quote.findUniqueOrThrow({
-    where: { id: quoteId },
-    include: { client: true },
-  })
-
-  await prisma.$transaction([
-    prisma.quote.update({ where: { id: quoteId }, data: { status: 'approved' } }),
-    prisma.project.create({
-      data: {
-        name: `${quote.client.name} — Proyecto`,
-        clientId: quote.clientId,
-        quoteId: quote.id,
-        budget: quote.total,
-        status: 'active',
-        startDate: new Date(),
-      },
-    }),
-  ])
-
-  revalidatePath('/quotes')
-  revalidatePath(`/quotes/${quoteId}`)
   revalidatePath('/projects')
+  redirect(`/projects/${project.id}`)
+}
+
+export async function deleteQuote(id: string): Promise<void> {
+  const session = await verifySession()
+  if (!session) throw new Error('No autorizado')
+
+  await prisma.quote.delete({ where: { id } })
+  revalidatePath('/quotes')
 }

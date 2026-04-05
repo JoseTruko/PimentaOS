@@ -20,7 +20,7 @@ export default async function NewProjectPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Nuevo Proyecto</h1>
-        <p className="text-muted-foreground text-sm">Completa los datos del proyecto</p>
+        <p className="text-muted-foreground text-sm mt-1">Completa los datos del proyecto</p>
       </div>
       <ProjectForm action={createProject} clients={clients} users={users} />
     </div>

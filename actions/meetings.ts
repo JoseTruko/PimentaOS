@@ -9,10 +9,10 @@ const MeetingSchema = z.object({
   title: z.string().min(1, 'El título es requerido'),
   type: z.enum(['internal', 'client']),
   clientId: z.string().optional(),
-  dateTime: z.string().min(1, 'La fecha y hora son requeridas'),
+  dateTime: z.string().min(1, 'La fecha es requerida'),
   meetingLink: z.string().url('URL inválida').optional().or(z.literal('')),
   notes: z.string().optional(),
-  participantIds: z.array(z.string()).min(1, 'Selecciona al menos un participante'),
+  participantIds: z.array(z.string()).optional(),
 })
 
 export type MeetingFormState = {
@@ -20,16 +20,21 @@ export type MeetingFormState = {
   message?: string
 }
 
-export async function getMeetings() {
+export async function getMeetings(params?: { type?: string; upcoming?: boolean }) {
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
+  const where: Record<string, unknown> = {}
+  if (params?.type) where.type = params.type
+  if (params?.upcoming) where.dateTime = { gte: new Date() }
+
   return prisma.meeting.findMany({
+    where,
     include: {
       client: { select: { id: true, name: true } },
       participants: { include: { user: { select: { id: true, name: true } } } },
     },
-    orderBy: { dateTime: 'desc' },
+    orderBy: { dateTime: 'asc' },
   })
 }
 
@@ -40,34 +45,31 @@ export async function createMeeting(
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
-  const clientId = formData.get('clientId')
   const participantIds = formData.getAll('participantIds') as string[]
 
   const parsed = MeetingSchema.safeParse({
     title: formData.get('title'),
     type: formData.get('type'),
-    clientId: (!clientId || clientId === 'none') ? undefined : clientId,
+    clientId: formData.get('clientId') === 'none' ? undefined : (formData.get('clientId') as string) || undefined,
     dateTime: formData.get('dateTime'),
-    meetingLink: formData.get('meetingLink') || '',
+    meetingLink: formData.get('meetingLink') || undefined,
     notes: formData.get('notes') || undefined,
     participantIds,
   })
 
-  if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors }
-  }
+  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors }
 
-  const { participantIds: pIds, clientId: cId, meetingLink, ...rest } = parsed.data
+  const { participantIds: pIds, clientId, meetingLink, ...rest } = parsed.data
 
   await prisma.meeting.create({
     data: {
       ...rest,
-      clientId: cId ?? null,
+      clientId: clientId || null,
       meetingLink: meetingLink || null,
       dateTime: new Date(rest.dateTime),
-      participants: {
-        create: pIds.map((userId) => ({ userId })),
-      },
+      participants: pIds?.length
+        ? { create: pIds.map((userId) => ({ userId })) }
+        : undefined,
     },
   })
 
@@ -75,49 +77,10 @@ export async function createMeeting(
   return { message: 'Reunión creada exitosamente' }
 }
 
-export async function updateMeeting(
-  id: string,
-  prevState: MeetingFormState,
-  formData: FormData
-): Promise<MeetingFormState> {
+export async function deleteMeeting(id: string): Promise<void> {
   const session = await verifySession()
   if (!session) throw new Error('No autorizado')
 
-  const clientId = formData.get('clientId')
-  const participantIds = formData.getAll('participantIds') as string[]
-
-  const parsed = MeetingSchema.safeParse({
-    title: formData.get('title'),
-    type: formData.get('type'),
-    clientId: (!clientId || clientId === 'none') ? undefined : clientId,
-    dateTime: formData.get('dateTime'),
-    meetingLink: formData.get('meetingLink') || '',
-    notes: formData.get('notes') || undefined,
-    participantIds,
-  })
-
-  if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors }
-  }
-
-  const { participantIds: pIds, clientId: cId, meetingLink, ...rest } = parsed.data
-
-  await prisma.$transaction([
-    prisma.meetingParticipant.deleteMany({ where: { meetingId: id } }),
-    prisma.meeting.update({
-      where: { id },
-      data: {
-        ...rest,
-        clientId: cId ?? null,
-        meetingLink: meetingLink || null,
-        dateTime: new Date(rest.dateTime),
-        participants: {
-          create: pIds.map((userId) => ({ userId })),
-        },
-      },
-    }),
-  ])
-
+  await prisma.meeting.delete({ where: { id } })
   revalidatePath('/meetings')
-  return { message: 'Reunión actualizada exitosamente' }
 }

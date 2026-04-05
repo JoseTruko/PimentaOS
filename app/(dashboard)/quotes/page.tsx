@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getQuotes } from '@/actions/quotes'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -10,8 +10,8 @@ import { Plus } from 'lucide-react'
 const statusLabel: Record<string, string> = {
   draft: 'Borrador', sent: 'Enviada', approved: 'Aprobada', rejected: 'Rechazada',
 }
-const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  draft: 'secondary', sent: 'outline', approved: 'default', rejected: 'destructive',
+const statusVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
+  draft: 'secondary', sent: 'outline', approved: 'default', rejected: 'outline',
 }
 
 export default async function QuotesPage({
@@ -19,15 +19,15 @@ export default async function QuotesPage({
 }: {
   searchParams: Promise<{ status?: string }>
 }) {
-  const { status } = await searchParams
-  const quotes = await getQuotes(status ? { status } : undefined)
+  const params = await searchParams
+  const quotes = await getQuotes(params)
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Cotizaciones</h1>
-          <p className="text-muted-foreground text-sm">{quotes.length} cotizaciones</p>
+          <p className="text-muted-foreground text-sm mt-1">{quotes.length} cotizaciones encontradas</p>
         </div>
         <Button asChild>
           <Link href="/quotes/new">
@@ -37,63 +37,57 @@ export default async function QuotesPage({
         </Button>
       </div>
 
-      {/* Filtros de status */}
-      <div className="flex gap-2 flex-wrap">
-        {[undefined, 'draft', 'sent', 'approved', 'rejected'].map((s) => (
-          <Link
-            key={s ?? 'all'}
-            href={s ? `/quotes?status=${s}` : '/quotes'}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
-              status === s || (!status && !s)
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-card text-muted-foreground border-border hover:text-foreground'
-            }`}
-          >
-            {s ? statusLabel[s] : 'Todas'}
-          </Link>
-        ))}
-      </div>
-
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Cliente</TableHead>
+              <TableHead>Título / Cliente</TableHead>
               <TableHead>Fecha</TableHead>
-              <TableHead>Ítems</TableHead>
-              <TableHead className="text-right">Total</TableHead>
+              <TableHead>Válida hasta</TableHead>
+              <TableHead>Total</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Proyecto</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {quotes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
-                  No hay cotizaciones
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                  No hay cotizaciones aún
                 </TableCell>
               </TableRow>
-            ) : quotes.map((q) => (
-              <TableRow key={q.id}>
-                <TableCell>
-                  <Link href={`/quotes/${q.id}`} className="font-medium hover:underline">
-                    {q.client.name}
-                    {q.client.company && (
-                      <span className="text-muted-foreground font-normal"> · {q.client.company}</span>
-                    )}
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-foreground text-sm">
-                  {new Date(q.createdAt).toLocaleDateString('es')}
-                </TableCell>
-                <TableCell className="text-muted-foreground text-sm">{q.items.length}</TableCell>
-                <TableCell className="text-right font-semibold">
-                  ${Number(q.total).toLocaleString('es')}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={statusVariant[q.status]}>{statusLabel[q.status]}</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
+            ) : (
+              quotes.map((quote) => {
+                const isExpired = quote.validUntil && new Date(quote.validUntil) < new Date()
+                return (
+                  <TableRow key={quote.id}>
+                    <TableCell>
+                      <Link href={`/quotes/${quote.id}`} className="font-medium hover:underline">
+                        {quote.title ?? `Cotización — ${quote.client.company ?? quote.client.name}`}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">{quote.client.company ?? quote.client.name}</p>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(quote.createdAt).toLocaleDateString('es')}
+                    </TableCell>
+                    <TableCell className={isExpired ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                      {quote.validUntil ? new Date(quote.validUntil).toLocaleDateString('es') : '—'}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      ${Number(quote.total).toLocaleString('es')}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant[quote.status]}>
+                        {statusLabel[quote.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {quote.items.length} ítems
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
           </TableBody>
         </Table>
       </div>
