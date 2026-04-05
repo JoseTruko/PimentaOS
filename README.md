@@ -44,37 +44,6 @@ npm start
 npm run lint
 ```
 
-## Configuración Completada
-
-### ✅ Tarea 1.1: Inicialización del Proyecto
-
-- [x] Proyecto Next.js 16.2.1 con App Router
-- [x] Tailwind CSS v4 configurado
-- [x] ShadCN UI instalado y configurado (preset Nova)
-- [x] Estructura básica del proyecto creada
-- [x] TypeScript configurado
-- [x] Página de bienvenida implementada
-
-### Próximos Pasos
-
-La tarea 1.1 está completa. Las siguientes tareas incluyen:
-
-1. **Tarea 1.2**: Configurar PostgreSQL y Prisma
-2. **Tarea 1.3**: Crear singleton del cliente Prisma
-3. **Tarea 1.4**: Configurar NextAuth con CredentialsProvider
-4. **Tarea 1.5**: Crear layout principal con sidebar
-5. **Tarea 1.6**: Crear página de login
-6. **Tarea 1.7**: Crear script de seed
-
-## Desarrollo
-
-Para iniciar el servidor de desarrollo:
-
-```bash
-npm run dev
-```
-
-La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
 
 ## Características Técnicas
 
