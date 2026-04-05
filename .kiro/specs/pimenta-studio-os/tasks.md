@@ -20,42 +20,42 @@
 
 ## Etapa 3: Módulo de Cotizaciones
 
-- [ ] 3.1 Crear Server Actions para cotizaciones: `actions/quotes.ts` con `createQuote`, `updateQuote`, `addQuoteItem`, `removeQuoteItem`, `changeQuoteStatus` y `approveQuote` (transacción quote → project)
-- [ ] 3.2 Crear componente de formulario de cotización con ítems dinámicos y cálculo de totales en tiempo real: `components/quotes/quote-form.tsx`
-- [ ] 3.3 Crear página de lista de cotizaciones: `app/(dashboard)/quotes/page.tsx`
-- [ ] 3.4 Crear páginas `new` y `edit` de cotización
-- [ ] 3.5 Crear página de detalle de cotización con botones de cambio de status: `app/(dashboard)/quotes/[id]/page.tsx`
-- [ ] 3.6 Implementar generación de PDF server-side: `lib/pdf.ts` con pdf-lib y `app/api/quotes/[id]/pdf/route.ts`
+- [x] 3.1 Crear Server Actions para cotizaciones: `actions/quotes.ts` con `createQuote`, `updateQuote`, `addQuoteItem`, `removeQuoteItem`, `changeQuoteStatus` y `approveQuote` (transacción quote → project)
+- [x] 3.2 Crear componente de formulario de cotización con ítems dinámicos y cálculo de totales en tiempo real: `components/quotes/quote-form.tsx`
+- [x] 3.3 Crear página de lista de cotizaciones: `app/(dashboard)/quotes/page.tsx`
+- [x] 3.4 Crear páginas `new` y `edit` de cotización
+- [x] 3.5 Crear página de detalle de cotización con botones de cambio de status: `app/(dashboard)/quotes/[id]/page.tsx`
+- [x] 3.6 Implementar generación de PDF server-side: `lib/pdf.ts` con pdf-lib y `app/api/quotes/[id]/pdf/route.ts`
 
 ## Etapa 4: Módulo de Proyectos
 
-- [ ] 4.1 Crear Server Actions para proyectos: `actions/projects.ts` con `createProject`, `updateProject` y `getProjects`
-- [ ] 4.2 Crear página de lista de proyectos con filtro por status: `app/(dashboard)/projects/page.tsx`
-- [ ] 4.3 Crear formulario de creación/edición de proyecto: `components/projects/project-form.tsx`
-- [ ] 4.4 Crear páginas `new` y detalle de proyecto: `app/(dashboard)/projects/new/page.tsx` y `app/(dashboard)/projects/[id]/page.tsx`
+- [x] 4.1 Crear Server Actions para proyectos: `actions/projects.ts` con `createProject`, `updateProject` y `getProjects`
+- [x] 4.2 Crear página de lista de proyectos con filtro por status: `app/(dashboard)/projects/page.tsx`
+- [x] 4.3 Crear formulario de creación/edición de proyecto: `components/projects/project-form.tsx`
+- [x] 4.4 Crear páginas `new` y detalle de proyecto: `app/(dashboard)/projects/new/page.tsx` y `app/(dashboard)/projects/[id]/page.tsx`
 
 ## Etapa 5: Módulo Financiero
 
-- [ ] 5.1 Crear Server Actions para ingresos y gastos: `actions/finance.ts` con `createIncome`, `markIncomePaid`, `createExpense` y `getFinanceSummary`
-- [ ] 5.2 Crear página de finanzas con tabs (Ingresos / Gastos / Resumen): `app/(dashboard)/finance/page.tsx`
-- [ ] 5.3 Crear formulario de registro de ingreso vinculado a proyecto: `components/finance/income-form.tsx`
-- [ ] 5.4 Crear formulario de registro de gasto con categoría: `components/finance/expense-form.tsx`
+- [x] 5.1 Crear Server Actions para ingresos y gastos: `actions/finance.ts` con `createIncome`, `markIncomePaid`, `createExpense` y `getFinanceSummary`
+- [x] 5.2 Crear página de finanzas con tabs (Ingresos / Gastos / Resumen): `app/(dashboard)/finance/page.tsx`
+- [x] 5.3 Crear formulario de registro de ingreso vinculado a proyecto: `components/finance/income-form.tsx`
+- [x] 5.4 Crear formulario de registro de gasto con categoría: `components/finance/expense-form.tsx`
 
 ## Etapa 6: Dashboard
 
-- [ ] 6.1 Implementar queries del dashboard: total ingresos del mes, total gastos del mes, ganancia neta y conteo de proyectos activos (con `Promise.all`)
-- [ ] 6.2 Crear página de dashboard con tarjetas de métricas: `app/(dashboard)/page.tsx`
+- [x] 6.1 Implementar queries del dashboard: total ingresos del mes, total gastos del mes, ganancia neta y conteo de proyectos activos (con `Promise.all`)
+- [x] 6.2 Crear página de dashboard con tarjetas de métricas: `app/(dashboard)/page.tsx`
 
 ## Etapa 7: Módulo de Reuniones
 
-- [ ] 7.1 Crear Server Actions para reuniones: `actions/meetings.ts` con `createMeeting`, `updateMeeting` y `getMeetings`
-- [ ] 7.2 Crear página de lista de reuniones ordenada por fecha: `app/(dashboard)/meetings/page.tsx`
-- [ ] 7.3 Crear formulario de reunión con selección de participantes y cliente opcional: `components/meetings/meeting-form.tsx`
-- [ ] 7.4 Crear página `new` de reunión: `app/(dashboard)/meetings/new/page.tsx`
+- [x] 7.1 Crear Server Actions para reuniones: `actions/meetings.ts` con `createMeeting`, `updateMeeting` y `getMeetings`
+- [x] 7.2 Crear página de lista de reuniones ordenada por fecha: `app/(dashboard)/meetings/page.tsx`
+- [x] 7.3 Crear formulario de reunión con selección de participantes y cliente opcional: `components/meetings/meeting-form.tsx`
+- [x] 7.4 Crear página `new` de reunión: `app/(dashboard)/meetings/new/page.tsx`
 
 ## Etapa 8: Módulo de Equipo
 
-- [ ] 8.1 Crear Server Actions para usuarios: `actions/team.ts` con `createUser`, `updateUser` y `getUsers` (solo admin)
-- [ ] 8.2 Crear página de lista del equipo: `app/(dashboard)/team/page.tsx`
-- [ ] 8.3 Crear formulario de creación/edición de usuario con validación de rol: `components/team/user-form.tsx`
-- [ ] 8.4 Crear página `new` de usuario: `app/(dashboard)/team/new/page.tsx`
+- [x] 8.1 Crear Server Actions para usuarios: `actions/team.ts` con `createUser`, `updateUser` y `getUsers` (solo admin)
+- [x] 8.2 Crear página de lista del equipo: `app/(dashboard)/team/page.tsx`
+- [x] 8.3 Crear formulario de creación/edición de usuario con validación de rol: `components/team/user-form.tsx`
+- [x] 8.4 Crear página `new` de usuario: `app/(dashboard)/team/new/page.tsx`
