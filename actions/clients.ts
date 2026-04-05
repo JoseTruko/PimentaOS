@@ -61,6 +61,10 @@ export async function getClientById(id: string) {
       projects: { orderBy: { createdAt: 'desc' } },
       meetings: { orderBy: { dateTime: 'desc' } },
       incomes: { orderBy: { date: 'desc' } },
+      notes: {
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { id: true, name: true } } },
+      },
     },
   })
 }
@@ -80,7 +84,7 @@ export async function createClient(
     status: formData.get('status'),
     type: formData.get('type'),
     priority: formData.get('priority'),
-    assignedUserId: formData.get('assignedUserId') || undefined,
+    assignedUserId: formData.get('assignedUserId') === 'none' ? undefined : (formData.get('assignedUserId') as string) || undefined,
   })
 
   if (!parsed.success) {
@@ -108,7 +112,7 @@ export async function updateClient(
     status: formData.get('status'),
     type: formData.get('type'),
     priority: formData.get('priority'),
-    assignedUserId: formData.get('assignedUserId') || undefined,
+    assignedUserId: formData.get('assignedUserId') === 'none' ? undefined : (formData.get('assignedUserId') as string) || undefined,
   })
 
   if (!parsed.success) {
@@ -119,6 +123,14 @@ export async function updateClient(
   revalidatePath('/clients')
   revalidatePath(`/clients/${id}`)
   return { message: 'Cliente actualizado exitosamente' }
+}
+
+export async function updateClientStatus(id: string, status: 'lead' | 'active' | 'inactive') {
+  const session = await verifySession()
+  if (!session) throw new Error('No autorizado')
+
+  await prisma.client.update({ where: { id }, data: { status } })
+  revalidatePath('/clients')
 }
 
 export async function deleteClient(id: string): Promise<void> {
