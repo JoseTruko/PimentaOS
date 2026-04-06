@@ -33,7 +33,7 @@ export default async function FinancePage({
   const dateFilter = start ? { gte: start } : undefined
   const chartStart = new Date(now.getFullYear(), now.getMonth() - (chartMonths - 1), 1)
 
-  const [incomes, expenses, periodIncome, periodExpenses, projects, chartIncomes, chartExpenses] = await Promise.all([
+  const [incomes, expenses, periodIncome, periodExpenses, projects, clients, chartIncomes, chartExpenses] = await Promise.all([
     getIncomes(),
     getExpenses(),
     prisma.income.aggregate({
@@ -47,6 +47,11 @@ export default async function FinancePage({
     prisma.project.findMany({
       where: { deletedAt: null },
       select: { id: true, name: true, client: { select: { id: true, name: true } } },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.client.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
     prisma.income.findMany({
@@ -133,7 +138,7 @@ export default async function FinancePage({
             <TabsTrigger value="expenses">Gastos ({expenses.length})</TabsTrigger>
           </TabsList>
           <div className="flex gap-2">
-            <AddIncomeButton projects={projects} />
+            <AddIncomeButton projects={projects} clients={clients} />
             <AddExpenseButton />
           </div>
         </div>

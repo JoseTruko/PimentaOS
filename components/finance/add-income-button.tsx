@@ -10,8 +10,9 @@ import { Plus, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 type Project = { id: string; name: string; client: { id: string; name: string } }
+type Client = { id: string; name: string }
 
-export function AddIncomeButton({ projects }: { projects: Project[] }) {
+export function AddIncomeButton({ projects, clients: allClients }: { projects: Project[]; clients: Client[] }) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<'project' | 'other'>('project')
   const [state, formAction, pending] = useActionState(createIncome, {})
@@ -25,7 +26,7 @@ export function AddIncomeButton({ projects }: { projects: Project[] }) {
     }
   }, [state, router])
 
-  const clients = [...new Map(projects.map(p => [p.client.id, p.client])).values()]
+  const projectClients = [...new Map(projects.map(p => [p.client.id, p.client])).values()]
 
   if (!open) {
     return (
@@ -95,7 +96,7 @@ export function AddIncomeButton({ projects }: { projects: Project[] }) {
                   <SelectTrigger className="w-full"><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Sin cliente</SelectItem>
-                    {clients.map((c) => (
+                    {projectClients.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -103,11 +104,25 @@ export function AddIncomeButton({ projects }: { projects: Project[] }) {
               </div>
             </>
           ) : (
-            <div className="space-y-2">
-              <Label>Descripción *</Label>
-              <Input name="description" placeholder="Ej: Consultoría, venta de activo..." required />
-              {state.errors?.description && <p className="text-xs text-destructive">{state.errors.description[0]}</p>}
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label>Descripción *</Label>
+                <Input name="description" placeholder="Ej: Consultoría, venta de activo..." required />
+                {state.errors?.description && <p className="text-xs text-destructive">{state.errors.description[0]}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label>Cliente <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                <Select name="clientId" defaultValue="none">
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Sin cliente" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin cliente</SelectItem>
+                    {allClients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
           )}
 
           <div className="space-y-2">
