@@ -28,13 +28,20 @@ export default async function EditProjectPage({
 
   const updateProjectWithId = updateProject.bind(null, id)
 
+  const serializedProject = {
+    ...project,
+    budget: project.budget ? project.budget.toString() : null,
+    startDate: project.startDate ? project.startDate.toISOString().split('T')[0] : null,
+    endDate: project.endDate ? project.endDate.toISOString().split('T')[0] : null,
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Editar Proyecto</h1>
         <p className="text-muted-foreground text-sm mt-1">{project.name}</p>
       </div>
-      <ProjectForm action={updateProjectWithId} clients={clients} users={users} project={project} />
+      <ProjectForm action={updateProjectWithId} clients={clients} users={users} project={serializedProject} />
     </div>
   )
 }

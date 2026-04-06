@@ -12,7 +12,7 @@ type Client = { id: string; name: string; company: string | null }
 type User = { id: string; name: string }
 type Project = {
   id: string; name: string; clientId: string; assignedUserId: string | null
-  status: string; budget: unknown; startDate: Date | null; endDate: Date | null
+  status: string; budget: unknown; startDate: string | Date | null; endDate: string | Date | null
   jiraUrl: string | null
 }
 
@@ -31,8 +31,11 @@ export function ProjectForm({ action, clients, users, project }: Props) {
     if (state.message && !state.errors) router.push('/projects')
   }, [state, router])
 
-  const toDateInput = (d: Date | null) =>
-    d ? new Date(d).toISOString().split('T')[0] : ''
+  const toDateInput = (d: string | Date | null | undefined) => {
+    if (!d) return ''
+    if (typeof d === 'string') return d.split('T')[0]
+    return d.toISOString().split('T')[0]
+  }
 
   return (
     <form action={formAction} className="space-y-6 max-w-2xl">

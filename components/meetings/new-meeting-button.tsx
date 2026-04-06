@@ -66,7 +66,7 @@ export function NewMeetingButton({ clients, users }: { clients: Client[]; users:
           </div>
           <div className="space-y-2">
             <Label>Cliente</Label>
-            <Select name="clientId" defaultValue="">
+            <Select name="clientId" defaultValue="none">
               <SelectTrigger className="w-full"><SelectValue placeholder="Sin cliente" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sin cliente</SelectItem>

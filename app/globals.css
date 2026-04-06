@@ -122,4 +122,19 @@
   html {
     @apply font-sans;
   }
+
+  /* Date/time inputs inherit color-scheme so the browser icon matches the theme */
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  input[type="month"] {
+    color-scheme: light;
+  }
+
+  .dark input[type="date"],
+  .dark input[type="datetime-local"],
+  .dark input[type="time"],
+  .dark input[type="month"] {
+    color-scheme: dark;
+  }
 }
