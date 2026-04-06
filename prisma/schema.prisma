@@ -169,17 +169,18 @@ enum ProjectStatus {
 }
 
 model Income {
-  id        String       @id @default(cuid())
-  projectId String
-  clientId  String
-  amount    Decimal
-  status    IncomeStatus @default(pending)
-  date      DateTime
-  paidAt    DateTime?
-  createdAt DateTime     @default(now())
+  id          String       @id @default(cuid())
+  projectId   String?
+  clientId    String?
+  description String?
+  amount      Decimal
+  status      IncomeStatus @default(pending)
+  date        DateTime
+  paidAt      DateTime?
+  createdAt   DateTime     @default(now())
 
-  project   Project      @relation(fields: [projectId], references: [id])
-  client    Client       @relation(fields: [clientId], references: [id])
+  project   Project?     @relation(fields: [projectId], references: [id])
+  client    Client?      @relation(fields: [clientId], references: [id])
 
   @@map("incomes")
 }

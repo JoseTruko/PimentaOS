@@ -6,8 +6,9 @@ import { revalidatePath } from 'next/cache'
 import { verifySession } from '@/lib/dal'
 
 const IncomeSchema = z.object({
-  projectId: z.string().min(1, 'El proyecto es requerido'),
-  clientId: z.string().min(1, 'El cliente es requerido'),
+  projectId: z.string().optional(),
+  clientId: z.string().optional(),
+  description: z.string().optional(),
   amount: z.coerce.number().min(0.01, 'El monto debe ser mayor a 0'),
   status: z.enum(['pending', 'paid']),
   date: z.string().min(1, 'La fecha es requerida'),
@@ -64,8 +65,9 @@ export async function createIncome(
   if (!session) throw new Error('No autorizado')
 
   const parsed = IncomeSchema.safeParse({
-    projectId: formData.get('projectId'),
-    clientId: formData.get('clientId'),
+    projectId: formData.get('projectId') === 'none' ? undefined : (formData.get('projectId') as string) || undefined,
+    clientId: formData.get('clientId') === 'none' ? undefined : (formData.get('clientId') as string) || undefined,
+    description: formData.get('description') as string || undefined,
     amount: formData.get('amount'),
     status: formData.get('status'),
     date: formData.get('date'),
@@ -74,7 +76,10 @@ export async function createIncome(
   if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors }
 
   await prisma.income.create({
-    data: { ...parsed.data, date: new Date(parsed.data.date) },
+    data: {
+      ...parsed.data,
+      date: new Date(parsed.data.date),
+    },
   })
 
   revalidatePath('/finance')

@@ -149,8 +149,8 @@ export default async function FinancePage() {
                 ) : incomes.map((income) => (
                   <TableRow key={income.id}>
                     <TableCell className="text-muted-foreground">{new Date(income.date).toLocaleDateString('es')}</TableCell>
-                    <TableCell className="font-medium">{income.client.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{income.project.name}</TableCell>
+                    <TableCell className="font-medium">{income.client?.name ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell className="text-muted-foreground">{income.project?.name ?? income.description ?? '—'}</TableCell>
                     <TableCell className="font-medium">${Number(income.amount).toLocaleString('es')}</TableCell>
                     <TableCell>
                       <Badge variant={income.status === 'paid' ? 'default' : 'secondary'}>
