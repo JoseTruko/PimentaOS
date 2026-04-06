@@ -24,6 +24,7 @@ const QuoteSchema = z.object({
 export type QuoteFormState = {
   errors?: Record<string, string[]>
   message?: string
+  quoteId?: string
 }
 
 export async function getQuotes(params?: { status?: string; clientId?: string }) {
@@ -169,4 +170,65 @@ export async function deleteQuote(id: string): Promise<void> {
 
   await prisma.quote.delete({ where: { id } })
   revalidatePath('/quotes')
+}
+
+export async function addQuoteItem(
+  quoteId: string,
+  prevState: QuoteFormState,
+  formData: FormData
+): Promise<QuoteFormState> {
+  const session = await verifySession()
+  if (!session) throw new Error('No autorizado')
+
+  const parsed = QuoteItemSchema.safeParse({
+    description: formData.get('description'),
+    quantity: formData.get('quantity'),
+    unitPrice: formData.get('unitPrice'),
+  })
+
+  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors }
+
+  const total = parsed.data.quantity * parsed.data.unitPrice
+
+  await prisma.$transaction(async (tx) => {
+    await tx.quoteItem.create({
+      data: { quoteId, ...parsed.data, total },
+    })
+    const items = await tx.quoteItem.findMany({ where: { quoteId } })
+    const newTotal = items.reduce((s, i) => s + Number(i.total), 0)
+    await tx.quote.update({ where: { id: quoteId }, data: { total: newTotal } })
+  })
+
+  revalidatePath(`/quotes/${quoteId}`)
+  return { message: 'Ítem agregado' }
+}
+
+export async function changeQuoteStatus(
+  id: string,
+  status: 'draft' | 'sent' | 'approved' | 'rejected'
+): Promise<void> {
+  const session = await verifySession()
+  if (!session) throw new Error('No autorizado')
+
+  await prisma.quote.update({ where: { id }, data: { status } })
+  revalidatePath('/quotes')
+  revalidatePath(`/quotes/${id}`)
+}
+
+export async function approveQuote(id: string): Promise<void> {
+  await changeQuoteStatus(id, 'approved')
+}
+
+export async function removeQuoteItem(quoteId: string, itemId: string): Promise<void> {
+  const session = await verifySession()
+  if (!session) throw new Error('No autorizado')
+
+  await prisma.$transaction(async (tx) => {
+    await tx.quoteItem.delete({ where: { id: itemId } })
+    const items = await tx.quoteItem.findMany({ where: { quoteId } })
+    const newTotal = items.reduce((s, i) => s + Number(i.total), 0)
+    await tx.quote.update({ where: { id: quoteId }, data: { total: newTotal } })
+  })
+
+  revalidatePath(`/quotes/${quoteId}`)
 }

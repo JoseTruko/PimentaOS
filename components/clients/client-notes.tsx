@@ -22,10 +22,10 @@ type Props = {
 export function ClientNotes({ clientId, notes, currentUserId, currentUserRole }: Props) {
   const createNoteWithId = createClientNote.bind(null, clientId)
   const [state, formAction, pending] = useActionState(
-    async (_prev: { error?: string }, formData: FormData) => {
+    async (_prev: { error?: string; success?: boolean }, formData: FormData) => {
       return await createNoteWithId(formData) ?? {}
     },
-    {}
+    {} as { error?: string; success?: boolean }
   )
   const formRef = useRef<HTMLFormElement>(null)
 

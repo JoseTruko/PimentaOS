@@ -142,3 +142,15 @@ export async function deleteProject(id: string): Promise<void> {
   await prisma.project.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath('/projects')
 }
+
+export async function changeProjectStatus(
+  id: string,
+  status: 'active' | 'paused' | 'completed'
+): Promise<void> {
+  const session = await verifySession()
+  if (!session) throw new Error('No autorizado')
+
+  await prisma.project.update({ where: { id }, data: { status } })
+  revalidatePath('/projects')
+  revalidatePath(`/projects/${id}`)
+}

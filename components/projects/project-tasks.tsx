@@ -15,8 +15,8 @@ export function ProjectTasks({ projectId, tasks, progress }: {
 }) {
   const createTaskWithId = createTask.bind(null, projectId)
   const [state, formAction, pending] = useActionState(
-    async (_prev: { error?: string }, fd: FormData) => await createTaskWithId(fd) ?? {},
-    {}
+    async (_prev: { error?: string; success?: boolean }, fd: FormData) => await createTaskWithId(fd) ?? {} as { error?: string; success?: boolean },
+    {} as { error?: string; success?: boolean }
   )
   const formRef = useRef<HTMLFormElement>(null)
   const [toggling, startToggle] = useTransition()

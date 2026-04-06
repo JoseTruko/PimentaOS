@@ -60,3 +60,34 @@ export async function deleteUser(id: string): Promise<void> {
   await prisma.user.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath('/team')
 }
+
+export async function updateUser(
+  id: string,
+  prevState: TeamFormState,
+  formData: FormData
+): Promise<TeamFormState> {
+  const session = await verifySession()
+  if (!session || session.user.role !== 'admin') throw new Error('No autorizado')
+
+  const parsed = z.object({
+    name: z.string().min(1, 'El nombre es requerido'),
+    email: z.string().email('Email inválido'),
+    role: z.enum(['admin', 'member']),
+  }).safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    role: formData.get('role'),
+  })
+
+  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors }
+
+  const existing = await prisma.user.findFirst({
+    where: { email: parsed.data.email, NOT: { id } },
+  })
+  if (existing) return { errors: { email: ['Este email ya está en uso'] } }
+
+  await prisma.user.update({ where: { id }, data: parsed.data })
+
+  revalidatePath('/team')
+  return { message: 'Usuario actualizado exitosamente' }
+}
