@@ -56,11 +56,11 @@ export default async function DashboardPage() {
       include: { client: { select: { name: true } } },
     }),
     prisma.income.aggregate({
-      where: { date: { gte: startOfMonth }, status: 'paid' },
+      where: { date: { gte: startOfMonth } },
       _sum: { amount: true },
     }),
     prisma.income.aggregate({
-      where: { date: { gte: startOfLastMonth, lte: endOfLastMonth }, status: 'paid' },
+      where: { date: { gte: startOfLastMonth, lte: endOfLastMonth } },
       _sum: { amount: true },
     }),
     prisma.expense.aggregate({

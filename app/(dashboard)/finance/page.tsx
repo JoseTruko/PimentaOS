@@ -28,7 +28,7 @@ export default async function FinancePage() {
     getIncomes(),
     getExpenses(),
     prisma.income.aggregate({
-      where: { date: { gte: startOfMonth }, status: 'paid' },
+      where: { date: { gte: startOfMonth } },
       _sum: { amount: true },
     }),
     prisma.expense.aggregate({
@@ -41,7 +41,7 @@ export default async function FinancePage() {
       orderBy: { name: 'asc' },
     }),
     prisma.income.findMany({
-      where: { date: { gte: sixMonthsAgo }, status: 'paid' },
+      where: { date: { gte: sixMonthsAgo } },
       select: { amount: true, date: true },
     }),
     prisma.expense.findMany({
