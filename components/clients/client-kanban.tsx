@@ -72,9 +72,9 @@ function KanbanCard({ client, targetStatus }: { client: Client; targetStatus: st
 
 export function ClientKanban({ columns }: { columns: Column[] }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1">
       {columns.map((col) => (
-        <div key={col.id} className="flex flex-col gap-3">
+        <div key={col.id} className="flex flex-col gap-3 min-w-[280px] flex-1">
           <div className="flex items-center gap-2">
             <div className={`h-2 w-2 rounded-full ${col.color}`} />
             <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
