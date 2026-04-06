@@ -9,7 +9,9 @@ import { AddExpenseButton } from '@/components/finance/add-expense-button'
 import { MarkPaidButton } from '@/components/finance/mark-paid-button'
 import { DeleteFinanceButton } from '@/components/finance/delete-finance-button'
 import { FinanceChart } from '@/components/finance/finance-chart'
+import { PeriodSelector } from '@/components/finance/period-selector'
 import { prisma } from '@/lib/prisma'
+import { getPeriodRange, getChartMonths, type Period } from '@/lib/period'
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react'
 
 const categoryLabel: Record<string, string> = {
@@ -17,22 +19,29 @@ const categoryLabel: Record<string, string> = {
 }
 const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
-export default async function FinancePage() {
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>
+}) {
+  const { period: rawPeriod } = await searchParams
+  const period = (rawPeriod ?? 'all') as Period
+  const { start, label } = getPeriodRange(period)
+  const chartMonths = getChartMonths(period)
   const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  // Build last 6 months range
-  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+  const dateFilter = start ? { gte: start } : undefined
+  const chartStart = new Date(now.getFullYear(), now.getMonth() - (chartMonths - 1), 1)
 
-  const [incomes, expenses, monthIncome, monthExpenses, projects, allIncomes, allExpenses] = await Promise.all([
+  const [incomes, expenses, periodIncome, periodExpenses, projects, chartIncomes, chartExpenses] = await Promise.all([
     getIncomes(),
     getExpenses(),
     prisma.income.aggregate({
-      where: { date: { gte: startOfMonth } },
+      where: { ...(dateFilter ? { date: dateFilter } : {}), status: 'paid' },
       _sum: { amount: true },
     }),
     prisma.expense.aggregate({
-      where: { date: { gte: startOfMonth } },
+      where: dateFilter ? { date: dateFilter } : {},
       _sum: { amount: true },
     }),
     prisma.project.findMany({
@@ -41,28 +50,28 @@ export default async function FinancePage() {
       orderBy: { name: 'asc' },
     }),
     prisma.income.findMany({
-      where: { date: { gte: sixMonthsAgo } },
+      where: { date: { gte: chartStart }, status: 'paid' },
       select: { amount: true, date: true },
     }),
     prisma.expense.findMany({
-      where: { date: { gte: sixMonthsAgo } },
+      where: { date: { gte: chartStart } },
       select: { amount: true, date: true },
     }),
   ])
 
-  const income = Number(monthIncome._sum.amount ?? 0)
-  const expensesTotal = Number(monthExpenses._sum.amount ?? 0)
+  const income = Number(periodIncome._sum.amount ?? 0)
+  const expensesTotal = Number(periodExpenses._sum.amount ?? 0)
   const net = income - expensesTotal
 
-  // Build chart data for last 6 months
-  const chartData = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
+  // Build chart data
+  const chartData = Array.from({ length: chartMonths }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (chartMonths - 1) + i, 1)
     const y = d.getFullYear()
     const m = d.getMonth()
-    const monthInc = allIncomes
+    const monthInc = chartIncomes
       .filter(r => new Date(r.date).getFullYear() === y && new Date(r.date).getMonth() === m)
       .reduce((s, r) => s + Number(r.amount), 0)
-    const monthExp = allExpenses
+    const monthExp = chartExpenses
       .filter(r => new Date(r.date).getFullYear() === y && new Date(r.date).getMonth() === m)
       .reduce((s, r) => s + Number(r.amount), 0)
     return { month: MONTHS_ES[m], income: monthInc, expenses: monthExp }
@@ -70,9 +79,12 @@ export default async function FinancePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Finanzas</h1>
-        <p className="text-muted-foreground text-sm mt-1">Ingresos y gastos de la agencia</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Finanzas</h1>
+          <p className="text-muted-foreground text-sm mt-1">{label}</p>
+        </div>
+        <PeriodSelector />
       </div>
 
       {/* Stats */}
@@ -82,7 +94,7 @@ export default async function FinancePage() {
             <TrendingUp className="h-5 w-5 text-emerald-600" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Ingresos del mes</p>
+            <p className="text-xs text-muted-foreground">Ingresos pagados</p>
             <p className="text-xl font-bold text-foreground">${income.toLocaleString('es')}</p>
           </div>
         </div>
@@ -91,7 +103,7 @@ export default async function FinancePage() {
             <TrendingDown className="h-5 w-5 text-rose-600" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Gastos del mes</p>
+            <p className="text-xs text-muted-foreground">Gastos</p>
             <p className="text-xl font-bold text-foreground">${expensesTotal.toLocaleString('es')}</p>
           </div>
         </div>
@@ -110,12 +122,12 @@ export default async function FinancePage() {
 
       {/* Chart */}
       <div className="bg-card rounded-xl border p-5">
-        <h2 className="font-semibold text-foreground mb-4">Últimos 6 meses</h2>
+        <h2 className="font-semibold text-foreground mb-4">{label}</h2>
         <FinanceChart data={chartData} />
       </div>
 
       <Tabs defaultValue="incomes">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <TabsList>
             <TabsTrigger value="incomes">Ingresos ({incomes.length})</TabsTrigger>
             <TabsTrigger value="expenses">Gastos ({expenses.length})</TabsTrigger>
@@ -133,7 +145,7 @@ export default async function FinancePage() {
                 <TableRow>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Proyecto</TableHead>
+                  <TableHead>Proyecto / Descripción</TableHead>
                   <TableHead>Monto</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead />

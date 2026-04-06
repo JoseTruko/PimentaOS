@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { verifySession } from '@/lib/dal'
+import { getPeriodRange, type Period } from '@/lib/period'
+import { PeriodSelector } from '@/components/finance/period-selector'
 import {
   TrendingUp, TrendingDown, Wallet, FolderOpen,
   Users, Clock, ArrowUpRight, Calendar, AlertTriangle,
@@ -16,9 +18,18 @@ const projectStatusVariant: Record<string, 'default' | 'secondary' | 'outline'> 
   active: 'default', paused: 'secondary', completed: 'outline',
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>
+}) {
   const session = await verifySession()
   if (!session) return null
+
+  const { period: rawPeriod } = await searchParams
+  const period = (rawPeriod ?? 'all') as Period
+  const { start, label: periodLabel } = getPeriodRange(period)
+  const dateFilter = start ? { gte: start } : undefined
 
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -56,15 +67,15 @@ export default async function DashboardPage() {
       include: { client: { select: { name: true } } },
     }),
     prisma.income.aggregate({
-      where: { date: { gte: startOfMonth } },
+      where: { ...(dateFilter ? { date: dateFilter } : {}), status: 'paid' },
       _sum: { amount: true },
     }),
     prisma.income.aggregate({
-      where: { date: { gte: startOfLastMonth, lte: endOfLastMonth } },
+      where: { date: { gte: startOfLastMonth, lte: endOfLastMonth }, status: 'paid' },
       _sum: { amount: true },
     }),
     prisma.expense.aggregate({
-      where: { date: { gte: startOfMonth } },
+      where: dateFilter ? { date: dateFilter } : {},
       _sum: { amount: true },
     }),
     // Cotizaciones enviadas hace más de 14 días sin respuesta
@@ -87,18 +98,18 @@ export default async function DashboardPage() {
 
   const stats = [
     {
-      label: 'Ingresos del Mes',
+      label: `Ingresos (${periodLabel})`,
       value: `$${income.toLocaleString('es')}`,
       sub: incomeChange !== null
         ? `${incomeChange >= 0 ? '+' : ''}${incomeChange.toFixed(1)}% vs mes anterior`
-        : 'Sin datos anteriores',
+        : 'Ingresos pagados',
       positive: incomeChange === null ? null : incomeChange >= 0,
       icon: TrendingUp, iconColor: 'text-emerald-600', iconBg: 'bg-emerald-50',
     },
     {
-      label: 'Gastos del Mes',
+      label: `Gastos (${periodLabel})`,
       value: `$${expenses.toLocaleString('es')}`,
-      sub: 'Mes actual',
+      sub: 'Total de gastos',
       positive: false,
       icon: TrendingDown, iconColor: 'text-rose-600', iconBg: 'bg-rose-50',
     },
@@ -120,9 +131,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Resumen general de tu agencia</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground text-sm mt-1">Resumen general de tu agencia</p>
+        </div>
+        <PeriodSelector />
       </div>
 
       {/* Alertas */}
