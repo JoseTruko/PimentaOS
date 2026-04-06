@@ -7,8 +7,8 @@ async function main() {
   console.log('🌱 Iniciando seed de la base de datos...')
 
   // Crear usuario admin inicial
-  const adminEmail = 'admin@pimentastudio.com'
-  const adminPassword = await hash('admin123', 12)
+  const adminEmail = 'pimenta.studio.cr@gmail.com'
+  const adminPassword = await hash('admin1234!', 12)
 
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail }
